@@ -68,6 +68,52 @@ export default function Home() {
     }
   }, [isAuthenticated, toast]);
 
+  // Handle GitHub OAuth callback
+  useEffect(() => {
+    const handleGitHubCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const githubCode = urlParams.get('github_code');
+      const authSuccess = urlParams.get('auth_success');
+      
+      if (githubCode && authSuccess && isAuthenticated) {
+        try {
+          const response = await fetch('/api/auth/github/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: githubCode })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            toast({
+              title: "GitHub Connected",
+              description: `Successfully connected to GitHub as ${data.username}`,
+            });
+          } else {
+            const error = await response.json();
+            toast({
+              title: "GitHub Connection Failed",
+              description: error.message,
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          toast({
+            title: "GitHub Connection Failed",
+            description: "Failed to complete GitHub authentication",
+            variant: "destructive",
+          });
+        }
+        
+        // Clean up URL parameters
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    };
+    
+    handleGitHubCallback();
+  }, [isAuthenticated, toast]);
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
