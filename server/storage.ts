@@ -196,4 +196,229 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// In-memory storage implementation for Replit development
+export class MemStorage implements IStorage {
+  private users: Map<string, User> = new Map();
+  private projects: Map<string, Project> = new Map();
+  private projectFiles: Map<string, ProjectFile> = new Map();
+  private aiGenerations: Map<string, AiGeneration> = new Map();
+  private usersByEmail: Map<string, User> = new Map();
+
+  private generateId(): string {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return this.usersByEmail.get(email);
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const user: User = {
+      id: this.generateId(),
+      email: userData.email,
+      firstName: userData.firstName ?? null,
+      lastName: userData.lastName ?? null,
+      profileImageUrl: userData.profileImageUrl ?? null,
+      hashedPassword: userData.hashedPassword ?? null,
+      credits: userData.credits ?? 1000,
+      stripeCustomerId: userData.stripeCustomerId ?? null,
+      stripeSubscriptionId: userData.stripeSubscriptionId ?? null,
+      subscriptionStatus: userData.subscriptionStatus ?? "free",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    this.users.set(user.id, user);
+    if (user.email) {
+      this.usersByEmail.set(user.email, user);
+    }
+    return user;
+  }
+
+  async upsertUser(userData: InsertUser): Promise<User> {
+    // Check if user exists by email
+    const existingUser = userData.email ? this.usersByEmail.get(userData.email) : undefined;
+    
+    if (existingUser) {
+      // Update existing user
+      const updatedUser: User = {
+        ...existingUser,
+        ...userData,
+        updatedAt: new Date(),
+      };
+      
+      this.users.set(updatedUser.id, updatedUser);
+      if (updatedUser.email) {
+        this.usersByEmail.set(updatedUser.email, updatedUser);
+      }
+      return updatedUser;
+    } else {
+      // Create new user
+      return this.createUser(userData);
+    }
+  }
+
+  async updateUserCredits(userId: string, credits: number): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    const updatedUser: User = {
+      ...user,
+      credits,
+      updatedAt: new Date(),
+    };
+    
+    this.users.set(userId, updatedUser);
+    if (updatedUser.email) {
+      this.usersByEmail.set(updatedUser.email, updatedUser);
+    }
+    return updatedUser;
+  }
+
+  async updateUserStripeInfo(userId: string, customerId: string, subscriptionId?: string): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    const updatedUser: User = {
+      ...user,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscriptionId ?? null,
+      updatedAt: new Date(),
+    };
+    
+    this.users.set(userId, updatedUser);
+    if (updatedUser.email) {
+      this.usersByEmail.set(updatedUser.email, updatedUser);
+    }
+    return updatedUser;
+  }
+
+  // Project operations
+  async getUserProjects(userId: string): Promise<Project[]> {
+    const userProjects = Array.from(this.projects.values())
+      .filter(project => project.userId === userId)
+      .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
+    return userProjects;
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    return this.projects.get(id);
+  }
+
+  async createProject(projectData: InsertProject): Promise<Project> {
+    const project: Project = {
+      id: this.generateId(),
+      userId: projectData.userId,
+      name: projectData.name,
+      description: projectData.description ?? null,
+      template: projectData.template ?? "react",
+      status: projectData.status ?? "draft",
+      deployUrl: projectData.deployUrl ?? null,
+      isPublic: projectData.isPublic ?? false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    this.projects.set(project.id, project);
+    return project;
+  }
+
+  async updateProject(id: string, updates: Partial<InsertProject>): Promise<Project> {
+    const project = this.projects.get(id);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+    
+    const updatedProject: Project = {
+      ...project,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    
+    this.projects.set(id, updatedProject);
+    return updatedProject;
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    this.projects.delete(id);
+    // Delete associated files
+    Array.from(this.projectFiles.keys()).forEach(key => {
+      const file = this.projectFiles.get(key);
+      if (file?.projectId === id) {
+        this.projectFiles.delete(key);
+      }
+    });
+  }
+
+  // Project file operations
+  async getProjectFiles(projectId: string): Promise<ProjectFile[]> {
+    return Array.from(this.projectFiles.values())
+      .filter(file => file.projectId === projectId)
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  async getProjectFile(projectId: string, path: string): Promise<ProjectFile | undefined> {
+    const key = `${projectId}:${path}`;
+    return this.projectFiles.get(key);
+  }
+
+  async createOrUpdateProjectFile(fileData: InsertProjectFile): Promise<ProjectFile> {
+    const key = `${fileData.projectId}:${fileData.path}`;
+    const existingFile = this.projectFiles.get(key);
+    
+    const file: ProjectFile = {
+      id: existingFile?.id ?? this.generateId(),
+      ...fileData,
+      content: fileData.content ?? "",
+      language: fileData.language ?? "javascript",
+      createdAt: existingFile?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    };
+    
+    this.projectFiles.set(key, file);
+    return file;
+  }
+
+  async deleteProjectFile(projectId: string, path: string): Promise<void> {
+    const key = `${projectId}:${path}`;
+    this.projectFiles.delete(key);
+  }
+
+  // AI generation operations
+  async createAiGeneration(generationData: InsertAiGeneration): Promise<AiGeneration> {
+    const generation: AiGeneration = {
+      id: this.generateId(),
+      userId: generationData.userId,
+      projectId: generationData.projectId ?? null,
+      prompt: generationData.prompt,
+      response: generationData.response ?? null,
+      creditsUsed: generationData.creditsUsed ?? 0,
+      model: generationData.model ?? "gpt-4o",
+      createdAt: new Date(),
+    };
+    
+    this.aiGenerations.set(generation.id, generation);
+    return generation;
+  }
+
+  async getUserAiGenerations(userId: string, limit = 50): Promise<AiGeneration[]> {
+    return Array.from(this.aiGenerations.values())
+      .filter(gen => gen.userId === userId)
+      .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
+      .slice(0, limit);
+  }
+}
+
+// Use in-memory storage for development, database storage for production
+export const storage = process.env.NODE_ENV === 'production' && process.env.DATABASE_URL 
+  ? new DatabaseStorage() 
+  : new MemStorage();

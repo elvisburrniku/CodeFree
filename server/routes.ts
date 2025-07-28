@@ -10,13 +10,15 @@ import { z } from "zod";
 import path from "path";
 import { promises as fs } from "fs";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+// Stripe integration - optional for development
+let stripe: Stripe | undefined;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-06-30.basil",
+  });
+} else {
+  console.log("STRIPE_SECRET_KEY not provided, payment features will be disabled");
 }
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-06-30.basil",
-});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -330,6 +332,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Subscription route
   app.post('/api/create-subscription', isAuthenticated, async (req: any, res) => {
+    if (!stripe) {
+      return res.status(503).json({ message: "Payment services not available" });
+    }
+
     const userId = req.user.id;
     const user = await storage.getUser(userId);
     
@@ -385,6 +391,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stripe webhook for handling subscription updates
   app.post('/api/stripe/webhook', async (req, res) => {
+    if (!stripe) {
+      return res.status(503).json({ message: "Payment services not available" });
+    }
+
     const sig = req.headers['stripe-signature'] as string;
     let event;
 

@@ -12,10 +12,8 @@ import { Check, Crown, Zap, Code, Star } from "lucide-react";
 
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 
 const SubscribeForm = () => {
   const stripe = useStripe();
@@ -255,12 +253,33 @@ export default function Subscribe() {
                 </li>
               </ul>
 
-              {clientSecret && (
+              {stripePromise && clientSecret ? (
                 <div className="mt-8">
                   {/* Make SURE to wrap the form in <Elements> which provides the stripe context. */}
                   <Elements stripe={stripePromise} options={{ clientSecret }}>
                     <SubscribeForm />
                   </Elements>
+                </div>
+              ) : (
+                <div className="mt-8">
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 rounded-lg"
+                    disabled={!stripePromise}
+                    onClick={() => {
+                      if (!stripePromise) {
+                        toast({
+                          title: "Payment Not Available",
+                          description: "Payment services are currently not configured. Please contact support.",
+                          variant: "destructive",
+                        });
+                      } else {
+                        createSubscription();
+                      }
+                    }}
+                  >
+                    {!stripePromise ? "Payment Not Available" : "Upgrade to Pro"}
+                  </Button>
                 </div>
               )}
             </CardContent>
