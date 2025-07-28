@@ -1,0 +1,23 @@
+express deprecated req.host: Use req.hostname instead file:/home/runner/workspace/node_modules/openid-client/build/passport.js:224:49
+11:21:30 AM [express] GET /api/login 302 in 1070ms
+AuthorizationResponseError: authorization response from the server is an error
+    at Module.validateAuthResponse (/home/runner/workspace/node_modules/oauth4webapi/src/index.ts:5448:11)
+    at Module.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/index.ts:3308:32)
+    at Strategy.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/passport.ts:556:35)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+11:21:31 AM [express] GET /api/login 302 in 289ms
+AuthorizationResponseError: authorization response from the server is an error
+    at Module.validateAuthResponse (/home/runner/workspace/node_modules/oauth4webapi/src/index.ts:5448:11)
+    at Module.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/index.ts:3308:32)
+    at Strategy.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/passport.ts:556:35)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+AuthorizationResponseError: authorization response from the server is an error
+    at Module.validateAuthResponse (/home/runner/workspace/node_modules/oauth4webapi/src/index.ts:5448:11)
+    at Module.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/index.ts:3308:32)
+    at Strategy.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/passport.ts:556:35)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+AuthorizationResponseError: authorization response from the server is an error
+    at Module.validateAuthResponse (/home/runner/workspace/node_modules/oauth4webapi/src/index.ts:5448:11)
+    at Module.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/index.ts:3308:32)
+    at Strategy.authorizationCodeGrant (/home/runner/workspace/node_modules/openid-client/src/passport.ts:556:35)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
