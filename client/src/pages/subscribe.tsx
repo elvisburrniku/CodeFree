@@ -274,7 +274,8 @@ export default function Subscribe() {
                           variant: "destructive",
                         });
                       } else {
-                        createSubscription();
+                        // createSubscription();
+                        // This would be implemented when Stripe is properly configured
                       }
                     }}
                   >

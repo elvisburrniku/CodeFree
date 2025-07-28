@@ -23,6 +23,7 @@ export interface IStorage {
   upsertUser(user: InsertUser): Promise<User>;
   updateUserCredits(userId: string, credits: number): Promise<User>;
   updateUserStripeInfo(userId: string, customerId: string, subscriptionId?: string): Promise<User>;
+  updateUserGitHubInfo(userId: string, accessToken: string, username: string): Promise<User>;
   
   // Project operations
   getUserProjects(userId: string): Promise<Project[]>;
@@ -35,6 +36,8 @@ export interface IStorage {
   getProjectFiles(projectId: string): Promise<ProjectFile[]>;
   getProjectFile(projectId: string, path: string): Promise<ProjectFile | undefined>;
   createOrUpdateProjectFile(file: InsertProjectFile): Promise<ProjectFile>;
+  createProjectFile(file: InsertProjectFile): Promise<ProjectFile>;
+  updateProjectFile(id: string, file: Partial<InsertProjectFile>): Promise<ProjectFile>;
   deleteProjectFile(projectId: string, path: string): Promise<void>;
   
   // AI generation operations
@@ -92,6 +95,19 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserGitHubInfo(userId: string, accessToken: string, username: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        githubAccessToken: accessToken,
+        githubUsername: username,
         updatedAt: new Date()
       })
       .where(eq(users.id, userId))
@@ -229,6 +245,8 @@ export class MemStorage implements IStorage {
       stripeCustomerId: userData.stripeCustomerId ?? null,
       stripeSubscriptionId: userData.stripeSubscriptionId ?? null,
       subscriptionStatus: userData.subscriptionStatus ?? "free",
+      githubAccessToken: userData.githubAccessToken ?? null,
+      githubUsername: userData.githubUsername ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -302,6 +320,26 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
 
+  async updateUserGitHubInfo(userId: string, accessToken: string, username: string): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    const updatedUser: User = {
+      ...user,
+      githubAccessToken: accessToken,
+      githubUsername: username,
+      updatedAt: new Date(),
+    };
+    
+    this.users.set(userId, updatedUser);
+    if (updatedUser.email) {
+      this.usersByEmail.set(updatedUser.email, updatedUser);
+    }
+    return updatedUser;
+  }
+
   // Project operations
   async getUserProjects(userId: string): Promise<Project[]> {
     const userProjects = Array.from(this.projects.values())
@@ -324,6 +362,11 @@ export class MemStorage implements IStorage {
       status: projectData.status ?? "draft",
       deployUrl: projectData.deployUrl ?? null,
       isPublic: projectData.isPublic ?? false,
+      githubRepoUrl: projectData.githubRepoUrl ?? null,
+      githubBranch: projectData.githubBranch ?? "main",
+      githubAccessToken: projectData.githubAccessToken ?? null,
+      lastSyncAt: projectData.lastSyncAt ?? null,
+      gitStatus: projectData.gitStatus ?? "unconnected",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -386,6 +429,40 @@ export class MemStorage implements IStorage {
     
     this.projectFiles.set(key, file);
     return file;
+  }
+
+  async createProjectFile(fileData: InsertProjectFile): Promise<ProjectFile> {
+    const file: ProjectFile = {
+      id: this.generateId(),
+      projectId: fileData.projectId,
+      path: fileData.path,
+      content: fileData.content ?? "",
+      language: fileData.language ?? "javascript",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    const key = `${fileData.projectId}:${fileData.path}`;
+    this.projectFiles.set(key, file);
+    return file;
+  }
+
+  async updateProjectFile(id: string, fileData: Partial<InsertProjectFile>): Promise<ProjectFile> {
+    // Find file by id in memory storage
+    const fileEntry = Array.from(this.projectFiles.entries()).find(([_, file]) => file.id === id);
+    if (!fileEntry) {
+      throw new Error("Project file not found");
+    }
+    
+    const [key, file] = fileEntry;
+    const updatedFile: ProjectFile = {
+      ...file,
+      ...fileData,
+      updatedAt: new Date(),
+    };
+    
+    this.projectFiles.set(key, updatedFile);
+    return updatedFile;
   }
 
   async deleteProjectFile(projectId: string, path: string): Promise<void> {

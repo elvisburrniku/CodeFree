@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ProjectFile } from "@/pages/editor";
+import { ProjectFile } from "./Sidebar";
 import { 
   Folder, 
   FolderOpen, 

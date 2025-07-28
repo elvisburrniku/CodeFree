@@ -1,8 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import FileExplorer from "./FileExplorer";
-import { Project, ProjectFile } from "@/pages/editor";
-import { Code, Settings, Zap, Circle } from "lucide-react";
+import GitHubIntegration from "./GitHubIntegration";
+import type { Project } from "@shared/schema";
+
+export interface ProjectFile {
+  id: string;
+  projectId: string;
+  path: string;
+  content: string;
+  language: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+import { Code, Settings, Zap, Circle, Github } from "lucide-react";
+import { useState } from "react";
 
 interface SidebarProps {
   currentProject: Project | null;
@@ -10,6 +22,7 @@ interface SidebarProps {
   activeFile: ProjectFile | null;
   onFileSelect: (file: ProjectFile) => void;
   onOpenAIChat: () => void;
+  onProjectUpdate?: (project: Project) => void;
 }
 
 export default function Sidebar({ 
@@ -17,8 +30,10 @@ export default function Sidebar({
   projectFiles, 
   activeFile, 
   onFileSelect, 
-  onOpenAIChat 
+  onOpenAIChat,
+  onProjectUpdate
 }: SidebarProps) {
+  const [activeTab, setActiveTab] = useState<'files' | 'git'>('files');
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'deployed':
@@ -71,12 +86,12 @@ export default function Sidebar({
             )}
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-500">
-                {currentProject.template} • {projectFiles.length} files
+                {currentProject.template || 'react'} • {projectFiles.length} files
               </span>
               <div className="flex items-center space-x-1">
-                {getStatusIcon(currentProject.status)}
-                <span className={`text-xs capitalize ${getStatusColor(currentProject.status)}`}>
-                  {currentProject.status}
+                {getStatusIcon(currentProject.status || 'draft')}
+                <span className={`text-xs capitalize ${getStatusColor(currentProject.status || 'draft')}`}>
+                  {currentProject.status || 'draft'}
                 </span>
               </div>
             </div>
@@ -90,13 +105,46 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* File Explorer */}
+      {/* Tabs */}
+      <div className="flex border-b border-slate-700">
+        <Button
+          variant={activeTab === 'files' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('files')}
+          className="flex-1 rounded-none border-0"
+        >
+          <Code className="w-4 h-4 mr-2" />
+          Files
+        </Button>
+        <Button
+          variant={activeTab === 'git' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('git')}
+          className="flex-1 rounded-none border-0"
+        >
+          <Github className="w-4 h-4 mr-2" />
+          Git
+        </Button>
+      </div>
+
+      {/* Tab Content */}
       <div className="flex-1 overflow-y-auto">
-        <FileExplorer
-          files={projectFiles}
-          activeFile={activeFile}
-          onFileSelect={onFileSelect}
-        />
+        {activeTab === 'files' ? (
+          <FileExplorer
+            files={projectFiles}
+            activeFile={activeFile}
+            onFileSelect={onFileSelect}
+          />
+        ) : (
+          currentProject && onProjectUpdate && (
+            <div className="p-4">
+              <GitHubIntegration
+                project={currentProject}
+                onProjectUpdate={onProjectUpdate}
+              />
+            </div>
+          )
+        )}
       </div>
 
       {/* AI Assistant Panel */}

@@ -9,6 +9,7 @@ import { insertProjectSchema, insertProjectFileSchema, insertAiGenerationSchema 
 import { z } from "zod";
 import path from "path";
 import { promises as fs } from "fs";
+import { GitHubService, exchangeCodeForToken } from "./github";
 
 // Stripe integration - optional for development
 let stripe: Stripe | undefined;
@@ -118,6 +119,296 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting project:", error);
       res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  // GitHub OAuth routes
+  app.get('/api/auth/github', (req, res) => {
+    if (!process.env.GITHUB_CLIENT_ID) {
+      return res.status(503).json({ message: "GitHub OAuth not configured" });
+    }
+    
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`;
+    res.json({ authUrl: githubAuthUrl });
+  });
+
+  app.post('/api/auth/github/callback', isAuthenticated, async (req: any, res) => {
+    try {
+      const { code } = req.body;
+      const userId = req.user.id;
+
+      if (!code) {
+        return res.status(400).json({ message: "Authorization code required" });
+      }
+
+      // Exchange code for access token
+      const accessToken = await exchangeCodeForToken(code);
+      
+      // Get GitHub user info
+      const githubService = new GitHubService(accessToken);
+      const githubUser = await githubService.getUser();
+
+      // Update user with GitHub info
+      await storage.updateUserGitHubInfo(userId, accessToken, githubUser.login);
+
+      res.json({ 
+        message: "GitHub account connected successfully",
+        username: githubUser.login 
+      });
+    } catch (error) {
+      console.error("GitHub OAuth error:", error);
+      res.status(400).json({ message: "Failed to connect GitHub account" });
+    }
+  });
+
+  // GitHub repository routes
+  app.get('/api/github/repositories', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      
+      if (!user?.githubAccessToken) {
+        return res.status(400).json({ message: "GitHub account not connected" });
+      }
+
+      const githubService = new GitHubService(user.githubAccessToken);
+      const repositories = await githubService.getUserRepositories();
+      
+      res.json(repositories);
+    } catch (error) {
+      console.error("Error fetching repositories:", error);
+      res.status(500).json({ message: "Failed to fetch repositories" });
+    }
+  });
+
+  app.post('/api/github/repositories', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      
+      if (!user?.githubAccessToken) {
+        return res.status(400).json({ message: "GitHub account not connected" });
+      }
+
+      const { name, description, private: isPrivate } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Repository name is required" });
+      }
+
+      const githubService = new GitHubService(user.githubAccessToken);
+      const repository = await githubService.createRepository(name, description, isPrivate);
+      
+      res.json(repository);
+    } catch (error) {
+      console.error("Error creating repository:", error);
+      res.status(500).json({ message: "Failed to create repository" });
+    }
+  });
+
+  // Project GitHub integration routes
+  app.post('/api/projects/:id/github/connect', isAuthenticated, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const userId = req.user.id;
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { repoUrl, branch = 'main' } = req.body;
+      
+      if (!repoUrl) {
+        return res.status(400).json({ message: "Repository URL is required" });
+      }
+
+      // Update project with GitHub info
+      const updatedProject = await storage.updateProject(req.params.id, {
+        githubRepoUrl: repoUrl,
+        githubBranch: branch,
+        gitStatus: 'connected',
+        lastSyncAt: new Date(),
+      });
+
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Error connecting repository:", error);
+      res.status(500).json({ message: "Failed to connect repository" });
+    }
+  });
+
+  app.post('/api/projects/:id/github/clone', isAuthenticated, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const userId = req.user.id;
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user?.githubAccessToken) {
+        return res.status(400).json({ message: "GitHub account not connected" });
+      }
+
+      if (!project.githubRepoUrl) {
+        return res.status(400).json({ message: "No GitHub repository connected" });
+      }
+
+      await storage.updateProject(req.params.id, { gitStatus: 'syncing' });
+
+      const githubService = new GitHubService(user.githubAccessToken);
+      
+      // Clone repository
+      await githubService.cloneRepository(project.githubRepoUrl, project.id);
+      
+      // Sync files from workspace to project
+      const updatedFiles = await githubService.syncWorkspaceToProject(project.id);
+      
+      // Update project status
+      await storage.updateProject(req.params.id, {
+        gitStatus: 'connected',
+        lastSyncAt: new Date(),
+      });
+
+      res.json({ 
+        message: "Repository cloned successfully",
+        filesCount: updatedFiles.length 
+      });
+    } catch (error) {
+      console.error("Error cloning repository:", error);
+      await storage.updateProject(req.params.id, { gitStatus: 'error' });
+      res.status(500).json({ message: "Failed to clone repository" });
+    }
+  });
+
+  app.post('/api/projects/:id/github/push', isAuthenticated, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const userId = req.user.id;
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user?.githubAccessToken) {
+        return res.status(400).json({ message: "GitHub account not connected" });
+      }
+
+      if (!project.githubRepoUrl) {
+        return res.status(400).json({ message: "No GitHub repository connected" });
+      }
+
+      const { commitMessage = 'Update from CodeCraft AI' } = req.body;
+
+      await storage.updateProject(req.params.id, { gitStatus: 'syncing' });
+
+      const githubService = new GitHubService(user.githubAccessToken);
+      
+      // Sync project files to workspace
+      await githubService.syncProjectToWorkspace(project.id);
+      
+      // Push changes to GitHub
+      await githubService.pushToRepository(project.id, commitMessage);
+      
+      // Update project status
+      await storage.updateProject(req.params.id, {
+        gitStatus: 'connected',
+        lastSyncAt: new Date(),
+      });
+
+      res.json({ message: "Changes pushed to GitHub successfully" });
+    } catch (error) {
+      console.error("Error pushing to repository:", error);
+      await storage.updateProject(req.params.id, { gitStatus: 'error' });
+      res.status(500).json({ message: "Failed to push to repository" });
+    }
+  });
+
+  app.post('/api/projects/:id/github/pull', isAuthenticated, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const userId = req.user.id;
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user?.githubAccessToken) {
+        return res.status(400).json({ message: "GitHub account not connected" });
+      }
+
+      if (!project.githubRepoUrl) {
+        return res.status(400).json({ message: "No GitHub repository connected" });
+      }
+
+      await storage.updateProject(req.params.id, { gitStatus: 'syncing' });
+
+      const githubService = new GitHubService(user.githubAccessToken);
+      
+      // Pull latest changes from GitHub
+      await githubService.pullFromRepository(project.id);
+      
+      // Sync files from workspace to project
+      const updatedFiles = await githubService.syncWorkspaceToProject(project.id);
+      
+      // Update project status
+      await storage.updateProject(req.params.id, {
+        gitStatus: 'connected',
+        lastSyncAt: new Date(),
+      });
+
+      res.json({ 
+        message: "Latest changes pulled from GitHub successfully",
+        filesCount: updatedFiles.length 
+      });
+    } catch (error) {
+      console.error("Error pulling from repository:", error);
+      await storage.updateProject(req.params.id, { gitStatus: 'error' });
+      res.status(500).json({ message: "Failed to pull from repository" });
+    }
+  });
+
+  app.delete('/api/projects/:id/github/disconnect', isAuthenticated, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const userId = req.user.id;
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Disconnect GitHub repository
+      const updatedProject = await storage.updateProject(req.params.id, {
+        githubRepoUrl: null,
+        githubBranch: 'main',
+        githubAccessToken: null,
+        lastSyncAt: null,
+        gitStatus: 'unconnected',
+      });
+
+      res.json({ 
+        message: "GitHub repository disconnected successfully",
+        project: updatedProject 
+      });
+    } catch (error) {
+      console.error("Error disconnecting repository:", error);
+      res.status(500).json({ message: "Failed to disconnect repository" });
     }
   });
 

@@ -62,10 +62,18 @@ export default function Editor() {
 
   useEffect(() => {
     if (files && files.length > 0) {
-      setProjectFiles(files);
+      // Transform the fetched files to match our interface
+      const transformedFiles = files.map(file => ({
+        ...file,
+        content: file.content || "",
+        language: file.language || "javascript",
+        createdAt: file.createdAt || new Date(),
+        updatedAt: file.updatedAt || new Date(),
+      }));
+      setProjectFiles(transformedFiles);
       // Open the first file by default
-      if (!activeFile && files.length > 0) {
-        const firstFile = files[0];
+      if (!activeFile && transformedFiles.length > 0) {
+        const firstFile = transformedFiles[0];
         setActiveFile(firstFile);
         setOpenFiles([firstFile]);
       }
@@ -142,6 +150,7 @@ export default function Editor() {
           activeFile={activeFile}
           onFileSelect={handleFileSelect}
           onOpenAIChat={() => setIsAiChatOpen(true)}
+          onProjectUpdate={(project) => setCurrentProject(project)}
         />
 
         {/* Editor and Preview Area */}

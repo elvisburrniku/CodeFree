@@ -36,6 +36,9 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   subscriptionStatus: varchar("subscription_status").default("free"),
+  // GitHub integration fields
+  githubAccessToken: varchar("github_access_token"), // Encrypted OAuth token
+  githubUsername: varchar("github_username"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -50,6 +53,12 @@ export const projects = pgTable("projects", {
   status: varchar("status").default("draft"), // draft, building, deployed, error
   deployUrl: varchar("deploy_url"),
   isPublic: boolean("is_public").default(false),
+  // GitHub integration fields
+  githubRepoUrl: varchar("github_repo_url"),
+  githubBranch: varchar("github_branch").default("main"),
+  githubAccessToken: varchar("github_access_token"), // Encrypted token for the user
+  lastSyncAt: timestamp("last_sync_at"),
+  gitStatus: varchar("git_status").default("unconnected"), // unconnected, connected, syncing, error
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
