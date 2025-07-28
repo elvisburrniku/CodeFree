@@ -132,6 +132,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ authUrl: githubAuthUrl });
   });
 
+  app.get('/api/auth/github/callback', async (req: any, res) => {
+    try {
+      const { code, state } = req.query;
+
+      if (!code) {
+        return res.redirect('/?error=github_auth_failed');
+      }
+
+      // For now, we'll redirect to a success page that will handle the token exchange
+      // This is a temporary solution - in production you'd want proper session handling
+      res.redirect(`/?github_code=${code}&auth_success=true`);
+    } catch (error) {
+      console.error("GitHub OAuth callback error:", error);
+      res.redirect('/?error=github_auth_failed');
+    }
+  });
+
   app.post('/api/auth/github/callback', isAuthenticated, async (req: any, res) => {
     try {
       const { code } = req.body;
