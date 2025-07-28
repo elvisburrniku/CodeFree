@@ -10,6 +10,7 @@ import Sidebar from "@/components/Sidebar";
 import CodeEditor from "@/components/CodeEditor";
 import PreviewPanel from "@/components/PreviewPanel";
 import AIChatModal from "@/components/AIChatModal";
+import SmartAgentModal from "@/components/SmartAgentModal";
 
 // Types imported from @shared/schema
 
@@ -23,6 +24,7 @@ export default function Editor() {
   const [activeFile, setActiveFile] = useState<ProjectFile | null>(null);
   const [openFiles, setOpenFiles] = useState<ProjectFile[]>([]);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+  const [isSmartAgentOpen, setIsSmartAgentOpen] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -128,6 +130,7 @@ export default function Editor() {
       <TopNavigation 
         user={user}
         onOpenAIChat={() => setIsAiChatOpen(true)}
+        onOpenSmartAgent={() => setIsSmartAgentOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -208,9 +211,12 @@ export default function Editor() {
             } else {
               const newFile: ProjectFile = {
                 id: `${Date.now()}-${Math.random()}`,
+                projectId: projectId!,
                 path: file.path,
                 content: file.content,
                 language: file.language,
+                createdAt: new Date(),
+                updatedAt: new Date(),
               };
               setProjectFiles([...projectFiles, newFile]);
               handleFileSelect(newFile);
@@ -218,6 +224,15 @@ export default function Editor() {
           });
         }}
       />
+
+      {/* Smart Agent Modal */}
+      {currentProject && (
+        <SmartAgentModal
+          isOpen={isSmartAgentOpen}
+          onClose={() => setIsSmartAgentOpen(false)}
+          projectId={currentProject.id}
+        />
+      )}
     </div>
   );
 }

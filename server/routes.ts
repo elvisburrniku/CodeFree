@@ -4,8 +4,11 @@ import Stripe from "stripe";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./supabaseAuth";
 import { generateCode, chatWithAI } from "./openai";
+import { analyzeProjectWithAI, generateCodeWithContext } from "./anthropic";
 import { insertProjectSchema, insertProjectFileSchema, insertAiGenerationSchema } from "@shared/schema";
 import { z } from "zod";
+import path from "path";
+import { promises as fs } from "fs";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -234,6 +237,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart Agent endpoints with project context
+  app.post('/api/ai/analyze-project', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user || (user.credits ?? 0) < 10) {
+        return res.status(400).json({ message: "Insufficient credits" });
+      }
+      
+      const { query, projectId, model = "claude-sonnet-4-20250514" } = req.body;
+      
+      if (!projectId) {
+        return res.status(400).json({ message: "Project ID required" });
+      }
+      
+      // Create a project workspace directory
+      const projectPath = await createProjectWorkspace(projectId);
+      
+      const result = await analyzeProjectWithAI(projectPath, query, model);
+      
+      // Deduct credits
+      await storage.updateUserCredits(userId, (user.credits ?? 0) - result.creditsUsed);
+      
+      // Save AI generation record
+      await storage.createAiGeneration({
+        userId,
+        projectId,
+        prompt: query,
+        response: result.response,
+        creditsUsed: result.creditsUsed,
+        model
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error analyzing project:", error);
+      res.status(500).json({ message: "Failed to analyze project" });
+    }
+  });
+
+  app.post('/api/ai/generate-with-context', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user || (user.credits ?? 0) < 15) {
+        return res.status(400).json({ message: "Insufficient credits" });
+      }
+      
+      const { prompt, projectId, targetFile, model = "claude-sonnet-4-20250514" } = req.body;
+      
+      if (!projectId) {
+        return res.status(400).json({ message: "Project ID required" });
+      }
+      
+      // Create a project workspace directory
+      const projectPath = await createProjectWorkspace(projectId);
+      
+      const result = await generateCodeWithContext(projectPath, prompt, targetFile, model);
+      
+      // Save generated files to project
+      for (const file of result.files) {
+        await storage.createOrUpdateProjectFile({
+          projectId,
+          path: file.path,
+          content: file.content,
+          language: file.language
+        });
+      }
+      
+      // Deduct credits
+      await storage.updateUserCredits(userId, (user.credits ?? 0) - result.creditsUsed);
+      
+      // Save AI generation record
+      await storage.createAiGeneration({
+        userId,
+        projectId,
+        prompt,
+        response: result.explanation,
+        creditsUsed: result.creditsUsed,
+        model
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating code with context:", error);
+      res.status(500).json({ message: "Failed to generate code with context" });
+    }
+  });
+
   // Subscription route
   app.post('/api/create-subscription', isAuthenticated, async (req: any, res) => {
     const userId = req.user.id;
@@ -318,6 +412,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Helper function to create project workspace from database files
+async function createProjectWorkspace(projectId: string): Promise<string> {
+  const workspaceDir = path.join(process.cwd(), 'temp', 'workspaces', projectId);
+  
+  try {
+    // Ensure workspace directory exists
+    await fs.mkdir(workspaceDir, { recursive: true });
+    
+    // Get all project files from database
+    const files = await storage.getProjectFiles(projectId);
+    
+    // Write files to workspace
+    for (const file of files) {
+      const filePath = path.join(workspaceDir, file.path);
+      const fileDir = path.dirname(filePath);
+      
+      // Ensure directory exists
+      await fs.mkdir(fileDir, { recursive: true });
+      
+      // Write file content
+      await fs.writeFile(filePath, file.content || '', 'utf-8');
+    }
+    
+    return workspaceDir;
+  } catch (error) {
+    console.error('Error creating project workspace:', error);
+    throw new Error('Failed to create project workspace');
+  }
 }
 
 function getInitialFiles(template: string): Array<{ path: string; content: string; language: string }> {

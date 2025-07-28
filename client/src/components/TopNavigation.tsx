@@ -7,9 +7,10 @@ import { apiRequest } from "@/lib/queryClient";
 interface TopNavigationProps {
   user: any;
   onOpenAIChat: () => void;
+  onOpenSmartAgent?: () => void;
 }
 
-export default function TopNavigation({ user, onOpenAIChat }: TopNavigationProps) {
+export default function TopNavigation({ user, onOpenAIChat, onOpenSmartAgent }: TopNavigationProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
@@ -48,6 +49,15 @@ export default function TopNavigation({ user, onOpenAIChat }: TopNavigationProps
             <span className="mr-2">✨</span>
             Generate Code
           </Button>
+          {onOpenSmartAgent && (
+            <Button 
+              onClick={onOpenSmartAgent}
+              className="px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
+            >
+              <span className="mr-2">🧠</span>
+              Smart Agent
+            </Button>
+          )}
         </div>
       </div>
       
