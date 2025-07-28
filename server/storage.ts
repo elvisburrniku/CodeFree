@@ -134,19 +134,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOrUpdateProjectFile(file: InsertProjectFile): Promise<ProjectFile> {
-    const [projectFile] = await db
-      .insert(projectFiles)
-      .values(file)
-      .onConflictDoUpdate({
-        target: [projectFiles.projectId, projectFiles.path],
-        set: {
+    // Check if file exists first
+    const existingFile = await this.getProjectFile(file.projectId, file.path);
+    
+    if (existingFile) {
+      // Update existing file
+      const [projectFile] = await db
+        .update(projectFiles)
+        .set({
           content: file.content,
           language: file.language,
           updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return projectFile;
+        })
+        .where(and(eq(projectFiles.projectId, file.projectId), eq(projectFiles.path, file.path)))
+        .returning();
+      return projectFile;
+    } else {
+      // Create new file
+      const [projectFile] = await db
+        .insert(projectFiles)
+        .values(file)
+        .returning();
+      return projectFile;
+    }
   }
 
   async deleteProjectFile(projectId: string, path: string): Promise<void> {

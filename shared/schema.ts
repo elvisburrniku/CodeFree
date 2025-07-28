@@ -62,7 +62,9 @@ export const projectFiles = pgTable("project_files", {
   language: varchar("language").default("javascript"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  uniqueProjectPath: index("unique_project_path").on(table.projectId, table.path),
+}));
 
 // AI generations table for tracking credit usage
 export const aiGenerations = pgTable("ai_generations", {

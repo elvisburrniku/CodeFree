@@ -1,0 +1,49 @@
+Error creating project: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/home/runner/workspace/node_modules/src/neon-serverless/session.ts:102:18)
+    at async DatabaseStorage.createOrUpdateProjectFile (/home/runner/workspace/server/storage.ts:137:27)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:58:9) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '915',
+  routine: 'infer_arbiter_indexes'
+}
+11:04:09 AM [express] POST /api/projects 500 in 798ms :: {"message":"Failed to create project"}
+Error creating project: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/home/runner/workspace/node_modules/src/neon-serverless/session.ts:102:18)
+    at async DatabaseStorage.createOrUpdateProjectFile (/home/runner/workspace/server/storage.ts:137:27)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:58:9) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '915',
+  routine: 'infer_arbiter_indexes'
+}
