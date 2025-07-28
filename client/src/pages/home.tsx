@@ -35,7 +35,7 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const githubCode = urlParams.get('github_code');
     const authSuccess = urlParams.get('auth_success');
-    
+
     if (githubCode && authSuccess && isAuthenticated) {
       const handleGitHubAuth = async () => {
         try {
@@ -43,7 +43,7 @@ export default function Home() {
             method: 'POST',
             body: JSON.stringify({ code: githubCode })
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             toast({
@@ -63,7 +63,7 @@ export default function Home() {
           });
         }
       };
-      
+
       handleGitHubAuth();
     }
   }, [isAuthenticated, toast]);
@@ -73,7 +73,7 @@ export default function Home() {
     const handleGitHubCallback = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const githubCode = urlParams.get('code');
-      
+
       if (githubCode && isAuthenticated) {
         try {
           const response = await fetch('/api/auth/github/callback', {
@@ -81,14 +81,14 @@ export default function Home() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: githubCode })
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             toast({
               title: "GitHub Connected",
               description: `Successfully connected to GitHub as ${data.username}`,
             });
-            
+
             // Refresh user data to get updated GitHub info
             await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           } else {
@@ -107,13 +107,13 @@ export default function Home() {
             variant: "destructive",
           });
         }
-        
+
         // Clean up URL parameters
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
       }
     };
-    
+
     // Only run callback handling if user is authenticated
     if (isAuthenticated && !isLoading) {
       handleGitHubCallback();
@@ -199,6 +199,23 @@ export default function Home() {
     return null; // Will redirect to login
   }
 
+  useEffect(() => {
+    fetchProjects();
+
+    // Check for GitHub connection status in URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('github_connected') === 'true') {
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    if (urlParams.get('error')) {
+      const error = urlParams.get('error');
+      console.log('GitHub connection error:', error);
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-50">
       {/* Header */}
@@ -219,7 +236,7 @@ export default function Home() {
               <span className="text-sm font-medium">{user?.credits || 0}</span>
               <span className="text-slate-400 text-sm">credits</span>
             </div>
-            
+
             {/* User Menu */}
             <div className="flex items-center space-x-2 bg-slate-700 rounded-lg px-3 py-2">
               {user?.profileImageUrl && (
@@ -233,7 +250,7 @@ export default function Home() {
                 {user?.firstName || user?.email || 'User'}
               </span>
             </div>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -273,7 +290,7 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -287,7 +304,7 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -301,7 +318,7 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -477,4 +494,8 @@ export default function Home() {
       />
     </div>
   );
+}
+
+function fetchProjects() {
+  console.log('fetchProjects called');
 }

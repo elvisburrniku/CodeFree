@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.id;
       const projectData = insertProjectSchema.parse({ ...req.body, userId });
       const project = await storage.createProject(projectData);
-      
+
       // Create initial files based on template
       const initialFiles = getInitialFiles(project.template || 'react');
       for (const file of initialFiles) {
@@ -53,7 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...file
         });
       }
-      
+
       res.json(project);
     } catch (error) {
       console.error("Error creating project:", error);
@@ -67,13 +67,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       // Check if user owns the project
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       res.json(project);
     } catch (error) {
       console.error("Error fetching project:", error);
@@ -87,12 +87,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const updates = insertProjectSchema.partial().parse(req.body);
       const updatedProject = await storage.updateProject(req.params.id, updates);
       res.json(updatedProject);
@@ -108,12 +108,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       await storage.deleteProject(req.params.id);
       res.json({ message: "Project deleted successfully" });
     } catch (error) {
@@ -127,24 +127,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!process.env.GITHUB_CLIENT_ID) {
       return res.status(503).json({ message: "GitHub OAuth not configured" });
     }
-    
+
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`;
     res.json({ authUrl: githubAuthUrl });
   });
 
-  app.get('/api/auth/github/callback', async (req: any, res) => {
+  app.get('/api/auth/github/callback', async (req, res) => {
+    const { code, state } = req.query;
+    const userId = req.session?.userId;
+
+    console.log('GitHub OAuth callback - User ID:', userId, 'Code:', code ? 'present' : 'missing');
+
+    if (!userId) {
+      // Redirect to login page if not authenticated
+      return res.redirect('/login?error=not_authenticated');
+    }
+
+    if (!code) {
+      // Redirect to home with error if no code
+      return res.redirect('/?error=github_auth_failed');
+    }
+
     try {
-      const { code, state } = req.query;
-
-      if (!code) {
-        return res.redirect('/?error=github_auth_failed');
-      }
-
-      // Redirect to home page with the code parameter for client-side handling
-      res.redirect(`/?code=${code}`);
+      await connectGitHubAccount(userId, code as string);
+      // Redirect to home page on success
+      res.redirect('/?github_connected=true');
     } catch (error) {
-      console.error("GitHub OAuth callback error:", error);
-      res.redirect('/?error=github_auth_failed');
+      console.error('GitHub OAuth error:', error);
+      // Redirect to home with error
+      res.redirect('/?error=github_connection_failed');
     }
   });
 
@@ -162,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Exchange code for access token
       const accessToken = await exchangeCodeForToken(code);
       console.log('Access token obtained:', accessToken ? 'success' : 'failed');
-      
+
       // Get GitHub user info
       const githubService = new GitHubService(accessToken);
       const githubUser = await githubService.getUser();
@@ -186,14 +197,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/github/repositories', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.id);
-      
+
       if (!user?.githubAccessToken) {
         return res.status(400).json({ message: "GitHub account not connected" });
       }
 
       const githubService = new GitHubService(user.githubAccessToken);
       const repositories = await githubService.getUserRepositories();
-      
+
       res.json(repositories);
     } catch (error) {
       console.error("Error fetching repositories:", error);
@@ -204,20 +215,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/github/repositories', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.id);
-      
+
       if (!user?.githubAccessToken) {
         return res.status(400).json({ message: "GitHub account not connected" });
       }
 
       const { name, description, private: isPrivate } = req.body;
-      
+
       if (!name) {
         return res.status(400).json({ message: "Repository name is required" });
       }
 
       const githubService = new GitHubService(user.githubAccessToken);
       const repository = await githubService.createRepository(name, description, isPrivate);
-      
+
       res.json(repository);
     } catch (error) {
       console.error("Error creating repository:", error);
@@ -232,14 +243,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       const { repoUrl, branch = 'main' } = req.body;
-      
+
       if (!repoUrl) {
         return res.status(400).json({ message: "Repository URL is required" });
       }
@@ -265,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
@@ -283,13 +294,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateProject(req.params.id, { gitStatus: 'syncing' });
 
       const githubService = new GitHubService(user.githubAccessToken);
-      
+
       // Clone repository
       await githubService.cloneRepository(project.githubRepoUrl, project.id);
-      
+
       // Sync files from workspace to project
       const updatedFiles = await githubService.syncWorkspaceToProject(project.id);
-      
+
       // Update project status
       await storage.updateProject(req.params.id, {
         gitStatus: 'connected',
@@ -313,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
@@ -333,13 +344,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateProject(req.params.id, { gitStatus: 'syncing' });
 
       const githubService = new GitHubService(user.githubAccessToken);
-      
+
       // Sync project files to workspace
       await githubService.syncProjectToWorkspace(project.id);
-      
+
       // Push changes to GitHub
       await githubService.pushToRepository(project.id, commitMessage);
-      
+
       // Update project status
       await storage.updateProject(req.params.id, {
         gitStatus: 'connected',
@@ -360,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
@@ -378,13 +389,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateProject(req.params.id, { gitStatus: 'syncing' });
 
       const githubService = new GitHubService(user.githubAccessToken);
-      
+
       // Pull latest changes from GitHub
       await githubService.pullFromRepository(project.id);
-      
+
       // Sync files from workspace to project
       const updatedFiles = await githubService.syncWorkspaceToProject(project.id);
-      
+
       // Update project status
       await storage.updateProject(req.params.id, {
         gitStatus: 'connected',
@@ -408,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
@@ -440,12 +451,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const files = await storage.getProjectFiles(req.params.id);
       res.json(files);
     } catch (error) {
@@ -460,17 +471,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const fileData = insertProjectFileSchema.parse({
         projectId: req.params.id,
         ...req.body
       });
-      
+
       const file = await storage.createOrUpdateProjectFile(fileData);
       res.json(file);
     } catch (error) {
@@ -484,23 +495,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user || (user.credits ?? 0) < 10) {
         return res.status(400).json({ message: "Insufficient credits" });
       }
-      
+
       const { prompt, language, framework, context, projectId } = req.body;
-      
+
       const result = await generateCode({
         prompt,
         language,
         framework,
         context
       });
-      
+
       // Deduct credits
       await storage.updateUserCredits(userId, (user.credits ?? 0) - result.creditsUsed);
-      
+
       // Save AI generation record
       await storage.createAiGeneration({
         userId,
@@ -510,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         creditsUsed: result.creditsUsed,
         model: "gpt-4o"
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error generating code:", error);
@@ -522,18 +533,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user || (user.credits ?? 0) < 5) {
         return res.status(400).json({ message: "Insufficient credits" });
       }
-      
+
       const { messages, projectId } = req.body;
-      
+
       const result = await chatWithAI(messages);
-      
+
       // Deduct credits
       await storage.updateUserCredits(userId, (user.credits ?? 0) - result.creditsUsed);
-      
+
       // Save AI generation record
       await storage.createAiGeneration({
         userId,
@@ -543,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         creditsUsed: result.creditsUsed,
         model: "gpt-4o"
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error chatting with AI:", error);
@@ -556,25 +567,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user || (user.credits ?? 0) < 10) {
         return res.status(400).json({ message: "Insufficient credits" });
       }
-      
+
       const { query, projectId, model = "claude-sonnet-4-20250514" } = req.body;
-      
+
       if (!projectId) {
         return res.status(400).json({ message: "Project ID required" });
       }
-      
+
       // Create a project workspace directory
       const projectPath = await createProjectWorkspace(projectId);
-      
+
       const result = await analyzeProjectWithAI(projectPath, query, model);
-      
+
       // Deduct credits
       await storage.updateUserCredits(userId, (user.credits ?? 0) - result.creditsUsed);
-      
+
       // Save AI generation record
       await storage.createAiGeneration({
         userId,
@@ -584,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         creditsUsed: result.creditsUsed,
         model
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error analyzing project:", error);
@@ -596,22 +607,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user || (user.credits ?? 0) < 15) {
         return res.status(400).json({ message: "Insufficient credits" });
       }
-      
+
       const { prompt, projectId, targetFile, model = "claude-sonnet-4-20250514" } = req.body;
-      
+
       if (!projectId) {
         return res.status(400).json({ message: "Project ID required" });
       }
-      
+
       // Create a project workspace directory
       const projectPath = await createProjectWorkspace(projectId);
-      
+
       const result = await generateCodeWithContext(projectPath, prompt, targetFile, model);
-      
+
       // Save generated files to project
       for (const file of result.files) {
         await storage.createOrUpdateProjectFile({
@@ -621,10 +632,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           language: file.language
         });
       }
-      
+
       // Deduct credits
       await storage.updateUserCredits(userId, (user.credits ?? 0) - result.creditsUsed);
-      
+
       // Save AI generation record
       await storage.createAiGeneration({
         userId,
@@ -634,7 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         creditsUsed: result.creditsUsed,
         model
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error generating code with context:", error);
@@ -650,7 +661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const userId = req.user.id;
     const user = await storage.getUser(userId);
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -662,7 +673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
       });
     }
-    
+
     if (!user.email) {
       return res.status(400).json({ message: 'No user email on file' });
     }
@@ -691,7 +702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       await storage.updateUserStripeInfo(userId, customer.id, subscription.id);
-  
+
       res.send({
         subscriptionId: subscription.id,
         clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
@@ -720,11 +731,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (event.type === 'invoice.payment_succeeded') {
       const invoice = event.data.object as any;
       const subscriptionId = invoice.subscription;
-      
+
       // Find user by subscription ID and grant credits
       const users = await storage.getUserProjects(''); // This is a hack, we need a better way to find users
       // In a real implementation, we'd have a proper user lookup by subscription ID
-      
+
       console.log('Payment succeeded for subscription:', subscriptionId);
       // Grant 1000 credits for successful payment
     }
@@ -739,26 +750,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 // Helper function to create project workspace from database files
 async function createProjectWorkspace(projectId: string): Promise<string> {
   const workspaceDir = path.join(process.cwd(), 'temp', 'workspaces', projectId);
-  
+
   try {
     // Ensure workspace directory exists
     await fs.mkdir(workspaceDir, { recursive: true });
-    
+
     // Get all project files from database
     const files = await storage.getProjectFiles(projectId);
-    
+
     // Write files to workspace
     for (const file of files) {
       const filePath = path.join(workspaceDir, file.path);
       const fileDir = path.dirname(filePath);
-      
+
       // Ensure directory exists
       await fs.mkdir(fileDir, { recursive: true });
-      
+
       // Write file content
       await fs.writeFile(filePath, file.content || '', 'utf-8');
     }
-    
+
     return workspaceDir;
   } catch (error) {
     console.error('Error creating project workspace:', error);
