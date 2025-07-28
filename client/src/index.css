@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(249, 90%, 58%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+
+  /* Dark theme colors matching the design */
+  --dark-50: hsl(216, 19%, 97%);
+  --dark-100: hsl(220, 14%, 95%);
+  --dark-200: hsl(220, 13%, 91%);
+  --dark-300: hsl(216, 12%, 84%);
+  --dark-400: hsl(218, 11%, 65%);
+  --dark-500: hsl(220, 9%, 46%);
+  --dark-600: hsl(215, 14%, 34%);
+  --dark-700: hsl(217, 19%, 27%);
+  --dark-800: hsl(215, 28%, 17%);
+  --dark-900: hsl(221, 39%, 11%);
+}
+
+.dark {
+  --background: hsl(221, 39%, 11%);
+  --foreground: hsl(216, 19%, 97%);
+  --muted: hsl(217, 19%, 27%);
+  --muted-foreground: hsl(218, 11%, 65%);
+  --popover: hsl(215, 28%, 17%);
+  --popover-foreground: hsl(216, 19%, 97%);
+  --card: hsl(215, 28%, 17%);
+  --card-foreground: hsl(216, 19%, 97%);
+  --border: hsl(217, 19%, 27%);
+  --input: hsl(217, 19%, 27%);
+  --primary: hsl(249, 90%, 58%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(217, 19%, 27%);
+  --secondary-foreground: hsl(216, 19%, 97%);
+  --accent: hsl(217, 19%, 27%);
+  --accent-foreground: hsl(216, 19%, 97%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(216, 19%, 97%);
+  --ring: hsl(216, 12%, 84%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+/* Monaco Editor Dark Theme */
+.monaco-editor.vs-dark {
+  background-color: hsl(221, 39%, 11%) !important;
+}
+
+.monaco-editor .margin {
+  background-color: hsl(221, 39%, 11%) !important;
+}
+
+/* File tree styles */
+.file-tree-item {
+  @apply flex items-center space-x-2 py-1 px-2 rounded hover:bg-muted hover:bg-opacity-50 cursor-pointer transition-colors;
+}
+
+.file-tree-item.active {
+  @apply bg-muted text-foreground;
+}
+
+.file-tree-item.folder {
+  @apply font-medium;
+}
+
+/* Syntax highlighting colors for dark theme */
+.syntax-keyword {
+  color: hsl(249, 90%, 70%);
+}
+
+.syntax-string {
+  color: hsl(120, 60%, 70%);
+}
+
+.syntax-number {
+  color: hsl(35, 80%, 70%);
+}
+
+.syntax-comment {
+  color: hsl(215, 14%, 55%);
+  font-style: italic;
+}
+
+.syntax-function {
+  color: hsl(45, 90%, 70%);
+}
+
+.syntax-variable {
+  color: hsl(200, 70%, 70%);
+}
+
+.syntax-tag {
+  color: hsl(15, 80%, 70%);
+}
+
+.syntax-attribute {
+  color: hsl(200, 70%, 70%);
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(217, 19%, 27%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(215, 14%, 34%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(218, 11%, 45%);
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, hsl(249, 90%, 58%) 0%, hsl(270, 80%, 60%) 100%);
+}
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: linear-gradient(135deg, hsl(249, 90%, 58%) 0%, hsl(270, 80%, 60%) 100%);
+  border-radius: inherit;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+}
