@@ -12,7 +12,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-06-30.basil",
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -279,9 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         items: [{
           price_data: {
             currency: 'usd',
-            product_data: {
-              name: 'CodeCraft AI Pro',
-            },
+            product: 'prod_codecraft_ai_pro',
             unit_amount: 1900, // $19.00
             recurring: {
               interval: 'month',
