@@ -63,7 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user owns the project
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -82,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -103,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -124,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -144,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       if (project.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -165,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI generation routes
   app.post('/api/ai/generate', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || (user.credits ?? 0) < 10) {
@@ -203,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/ai/chat', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || (user.credits ?? 0) < 5) {
@@ -236,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Subscription route
   app.post('/api/create-subscription', isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.user.id;
     const user = await storage.getUser(userId);
     
     if (!user) {

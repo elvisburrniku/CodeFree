@@ -5,11 +5,19 @@ import session from 'express-session';
 import { randomBytes } from 'crypto';
 import { storage } from './storage';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL || 'https://your-project.supabase.co';
+// Initialize Supabase client - extract URL from connection string if needed
+let supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// If SUPABASE_URL is a PostgreSQL connection string, extract the base URL
+if (supabaseUrl.startsWith('postgresql://')) {
+  const urlMatch = supabaseUrl.match(/db\.([^\.]+)\.supabase\.co/);
+  if (urlMatch) {
+    supabaseUrl = `https://${urlMatch[1]}.supabase.co`;
+  }
+}
+
+export const supabase = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week

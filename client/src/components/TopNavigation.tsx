@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Code, Coins, ChevronDown } from "lucide-react";
+import { Code, Coins, ChevronDown, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface TopNavigationProps {
   user: any;
@@ -9,6 +11,17 @@ interface TopNavigationProps {
 
 export default function TopNavigation({ user, onOpenAIChat }: TopNavigationProps) {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/auth/logout");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/");
+    },
+  });
 
   return (
     <nav className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
@@ -47,20 +60,22 @@ export default function TopNavigation({ user, onOpenAIChat }: TopNavigationProps
         </div>
         
         {/* User Menu */}
-        <div className="relative">
+        <div className="relative flex items-center space-x-2">
           <div className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 rounded-lg px-3 py-2 transition-colors">
-            {user?.profileImageUrl && (
-              <img 
-                src={user.profileImageUrl} 
-                alt="User avatar" 
-                className="w-6 h-6 rounded-full object-cover"
-              />
-            )}
             <span className="hidden md:block text-sm font-medium">
               {user?.firstName || user?.email || 'User'}
             </span>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
           </div>
+          
+          <Button
+            onClick={() => logoutMutation.mutate()}
+            variant="ghost"
+            size="sm"
+            disabled={logoutMutation.isPending}
+            className="text-slate-400 hover:text-slate-200 hover:bg-slate-700"
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
         </div>
       </div>
     </nav>

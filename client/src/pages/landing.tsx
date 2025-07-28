@@ -14,7 +14,7 @@ export default function Landing() {
             </div>
             <span className="text-xl font-bold">CodeCraft AI</span>
           </div>
-          <Button onClick={() => window.location.href = '/api/login'} variant="outline" className="border-purple-500 text-purple-300 hover:bg-purple-500/10">
+          <Button onClick={() => window.location.href = '/login'} variant="outline" className="border-purple-500 text-purple-300 hover:bg-purple-500/10">
             Sign In
           </Button>
         </div>
@@ -37,7 +37,7 @@ export default function Landing() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
-                onClick={() => window.location.href = '/api/login'}
+                onClick={() => window.location.href = '/login'}
                 size="lg" 
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-3 text-lg"
               >
