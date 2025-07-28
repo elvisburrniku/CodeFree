@@ -72,10 +72,9 @@ export default function Home() {
   useEffect(() => {
     const handleGitHubCallback = async () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const githubCode = urlParams.get('github_code');
-      const authSuccess = urlParams.get('auth_success');
+      const githubCode = urlParams.get('code');
       
-      if (githubCode && authSuccess && isAuthenticated) {
+      if (githubCode && isAuthenticated) {
         try {
           const response = await fetch('/api/auth/github/callback', {
             method: 'POST',
@@ -89,6 +88,9 @@ export default function Home() {
               title: "GitHub Connected",
               description: `Successfully connected to GitHub as ${data.username}`,
             });
+            
+            // Refresh user data to get updated GitHub info
+            await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           } else {
             const error = await response.json();
             toast({
@@ -98,6 +100,7 @@ export default function Home() {
             });
           }
         } catch (error) {
+          console.error('GitHub callback error:', error);
           toast({
             title: "GitHub Connection Failed",
             description: "Failed to complete GitHub authentication",
@@ -111,7 +114,10 @@ export default function Home() {
       }
     };
     
-    handleGitHubCallback();
+    // Only run callback handling if user is authenticated
+    if (isAuthenticated && !isLoading) {
+      handleGitHubCallback();
+    }
   }, [isAuthenticated, toast]);
 
   // Redirect to login if not authenticated

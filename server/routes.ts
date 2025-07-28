@@ -140,9 +140,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.redirect('/?error=github_auth_failed');
       }
 
-      // For now, we'll redirect to a success page that will handle the token exchange
-      // This is a temporary solution - in production you'd want proper session handling
-      res.redirect(`/?github_code=${code}&auth_success=true`);
+      // Redirect to home page with the code parameter for client-side handling
+      res.redirect(`/?code=${code}`);
     } catch (error) {
       console.error("GitHub OAuth callback error:", error);
       res.redirect('/?error=github_auth_failed');
@@ -154,19 +153,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { code } = req.body;
       const userId = req.user.id;
 
+      console.log('GitHub OAuth callback - User ID:', userId, 'Code:', code ? 'present' : 'missing');
+
       if (!code) {
         return res.status(400).json({ message: "Authorization code required" });
       }
 
       // Exchange code for access token
       const accessToken = await exchangeCodeForToken(code);
+      console.log('Access token obtained:', accessToken ? 'success' : 'failed');
       
       // Get GitHub user info
       const githubService = new GitHubService(accessToken);
       const githubUser = await githubService.getUser();
+      console.log('GitHub user info:', githubUser.login);
 
       // Update user with GitHub info
       await storage.updateUserGitHubInfo(userId, accessToken, githubUser.login);
+      console.log('User updated with GitHub info');
 
       res.json({ 
         message: "GitHub account connected successfully",
@@ -174,7 +178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("GitHub OAuth error:", error);
-      res.status(400).json({ message: "Failed to connect GitHub account" });
+      res.status(400).json({ message: "Failed to connect GitHub account", error: error.message });
     }
   });
 

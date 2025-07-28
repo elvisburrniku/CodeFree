@@ -300,6 +300,8 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
     throw new Error('GitHub OAuth credentials not configured');
   }
 
+  console.log('Exchanging code for token, client ID:', process.env.GITHUB_CLIENT_ID);
+
   const response = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: {
@@ -314,9 +316,14 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
   });
 
   const data = await response.json();
+  console.log('GitHub token response:', data);
 
   if (data.error) {
     throw new Error(`GitHub OAuth error: ${data.error_description}`);
+  }
+
+  if (!data.access_token) {
+    throw new Error('No access token received from GitHub');
   }
 
   return data.access_token;
