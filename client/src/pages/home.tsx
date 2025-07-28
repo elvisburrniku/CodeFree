@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { User, Project } from "@shared/schema";
+import CreateProjectDialog from "@/components/CreateProjectDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ export default function Home() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function Home() {
         title: "Success",
         description: "Project created successfully!",
       });
+      setIsCreateDialogOpen(false);
       setLocation(`/editor/${project.id}`);
     },
     onError: (error: Error) => {
@@ -83,13 +86,8 @@ export default function Home() {
     },
   });
 
-  const handleCreateProject = async (template: string = "react") => {
-    const projectName = `${template}-app-${Date.now()}`;
-    createProjectMutation.mutate({
-      name: projectName,
-      description: `A new ${template} application`,
-      template,
-    });
+  const handleCreateProject = (projectData: { name: string; description: string; template: string }) => {
+    createProjectMutation.mutate(projectData);
   };
 
   const handleOpenProject = (projectId: string) => {
@@ -239,7 +237,7 @@ export default function Home() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-slate-50">Recent Projects</CardTitle>
                   <Button
-                    onClick={() => handleCreateProject("react")}
+                    onClick={() => setIsCreateDialogOpen(true)}
                     disabled={createProjectMutation.isPending}
                     className="bg-purple-500 hover:bg-purple-600"
                   >
@@ -296,25 +294,14 @@ export default function Home() {
                     <Folder className="w-12 h-12 text-slate-500 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-slate-300 mb-2">No projects yet</h3>
                     <p className="text-slate-400 mb-4">Create your first project to get started</p>
-                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                      <Button 
-                        onClick={() => handleCreateProject("react")}
-                        disabled={createProjectMutation.isPending}
-                        className="bg-purple-500 hover:bg-purple-600"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create React App
-                      </Button>
-                      <Button 
-                        onClick={() => handleCreateProject("html")}
-                        disabled={createProjectMutation.isPending}
-                        variant="outline"
-                        className="border-slate-600 text-slate-300 hover:bg-slate-800"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create HTML Project
-                      </Button>
-                    </div>
+                    <Button 
+                      onClick={() => setIsCreateDialogOpen(true)}
+                      disabled={createProjectMutation.isPending}
+                      className="bg-purple-500 hover:bg-purple-600"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Project
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -330,7 +317,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button 
-                  onClick={() => handleCreateProject("react")}
+                  onClick={() => setIsCreateDialogOpen(true)}
                   disabled={createProjectMutation.isPending}
                   className="w-full justify-start bg-slate-700 hover:bg-slate-600 text-slate-200"
                 >
@@ -390,6 +377,14 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* Project Creation Dialog */}
+      <CreateProjectDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onCreateProject={handleCreateProject}
+        isLoading={createProjectMutation.isPending}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Project, ProjectFile } from "@/pages/editor";
+import type { Project, ProjectFile } from "@shared/schema";
 import { RefreshCw, ExternalLink, Eye, AlertCircle } from "lucide-react";
 
 interface PreviewPanelProps {
@@ -42,8 +42,7 @@ export default function PreviewPanel({ project, files }: PreviewPanelProps) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${project?.name || 'Preview'}</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>`;
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>`;
 
         // Add CSS files
         cssFiles.forEach(cssFile => {
@@ -55,12 +54,17 @@ export default function PreviewPanel({ project, files }: PreviewPanelProps) {
 <body>
     <div id="root"></div>`;
 
-        // Add JavaScript files
+        // Add JavaScript files (simplified for preview)
         jsFiles.forEach(jsFile => {
-          const scriptType = jsFile.path.endsWith('.jsx') || jsFile.path.endsWith('.tsx') 
-            ? 'text/babel' 
-            : 'text/javascript';
-          htmlContent += `\n    <script type="${scriptType}">\n${jsFile.content}\n    </script>`;
+          if (jsFile.content.includes('React') || jsFile.path.includes('jsx') || jsFile.path.includes('tsx')) {
+            // For React files, create a simple preview representation
+            htmlContent += `\n    <script>
+              // Preview: ${jsFile.path}
+              document.getElementById('root').innerHTML = '<div style="padding: 20px; font-family: Arial, sans-serif; max-width: 800px;"><h2 style="color: #333; margin-bottom: 16px;">React Component Preview</h2><p style="color: #666; margin-bottom: 16px;">This is a preview of your ${jsFile.path} file. For full React functionality, deploy your project.</p><div style="background: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 4px solid #007bff; overflow-x: auto;"><pre style="margin: 0; font-size: 14px; line-height: 1.4;">${jsFile.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 800)}${jsFile.content.length > 800 ? '...' : ''}</pre></div></div>';
+            </script>`;
+          } else {
+            htmlContent += `\n    <script>\n${jsFile.content}\n    </script>`;
+          }
         });
 
         htmlContent += `
